@@ -36,3 +36,12 @@ uv run data/generate_data.py
 ```
 
 This can be also tested on a smaller subset of data with [data/generate_data.ipynb](data/generate_data.ipynb) notebook.
+
+## Quick Start
+
+<docker composer instructions>
+
+
+## Components
+
+<each point explained seperately>
