@@ -3,7 +3,9 @@ Scrape NVIDIA GeForce NOW FAQ page and save to CSV.
 """
 
 import csv
+from pathlib import Path
 import re
+
 import requests
 from bs4 import BeautifulSoup
 
@@ -110,14 +112,15 @@ def save_to_csv(data: list[dict], filename: str) -> None:
 
 def main():
     url = "https://www.nvidia.com/en-us/geforce-now/faq/"
-    output_file = "nvidia_geforce_now_faq.csv"
+    output_folder = Path(__file__).resolve().parent
+    output_file = "geforce_now_faq_raw.csv"
 
     print(f"Scraping FAQ data from {url}...")
     faq_data = scrape_nvidia_faq(url)
 
     if faq_data:
         print(f"Found {len(faq_data)} FAQ items")
-        save_to_csv(faq_data, output_file)
+        save_to_csv(data=faq_data, filename=output_folder / output_file)
     else:
         print("No FAQ data found. The page may require JavaScript rendering.")
         print("Consider using Selenium or Playwright for dynamic content.")
