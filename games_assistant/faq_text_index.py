@@ -7,13 +7,14 @@ from pathlib import Path
 from elasticsearch import Elasticsearch
 from elasticsearch.helpers import bulk
 
-from data.faq_model import FAQ
-
-DEFAULT_INDEX = "geforce-now-faq"
-DEFAULT_ES_URL = "http://localhost:9200"
+from constants import DEFAULT_ES_URL, DEFAULT_INDEX
 
 
-def create_index(client: Elasticsearch, index_name: str, recreate: bool) -> None:
+def create_index(
+        client: Elasticsearch,
+        index_name: str,
+        recreate: bool = False
+    ) -> None:
     """Create the FAQ index when it does not already exist.
 
     Args:
@@ -31,11 +32,11 @@ def create_index(client: Elasticsearch, index_name: str, recreate: bool) -> None
         "properties": {
             "id": {"type": "integer"},
             "category": {"type": "keyword"},
-            "tag": {"type": "keyword"},
-            "question": {
+            "tag": {
                 "type": "text",
-                "fields": {"keyword": {"type": "keyword", "ignore_above": 256}},
+                "fields": {"keyword": {"type": "keyword"}},
             },
+            "question": {"type": "text"},
             "answer": {"type": "text"},
         }
     }
@@ -43,24 +44,24 @@ def create_index(client: Elasticsearch, index_name: str, recreate: bool) -> None
 
 
 def index_csv_data(client: Elasticsearch, index_name: str, csv_path: Path) -> int:
-    """Validate FAQ CSV rows and bulk-index them into Elasticsearch.
+    """Read FAQ CSV rows and bulk-index them into Elasticsearch.
 
     Args:
         client: Connected Elasticsearch client.
         index_name: Name of the target index.
-        csv_path: Path to the enriched GeForce NOW FAQ CSV file.
+        csv_path: Path to the GeForce NOW FAQ CSV file.
 
     Returns:
         Number of successfully indexed FAQ documents.
     """
     with csv_path.open(newline="", encoding="utf-8") as csv_file:
-        documents = [FAQ.model_validate(row) for row in csv.DictReader(csv_file)]
+        documents = list(csv.DictReader(csv_file))
 
     actions = [
         {
             "_index": index_name,
-            "_id": document.id,
-            "_source": document.model_dump(),
+            "_id": document["id"],
+            "_source": document,
         }
         for document in documents
     ]
@@ -75,7 +76,7 @@ def index_csv_data(client: Elasticsearch, index_name: str, csv_path: Path) -> in
 def main() -> None:
     """Parse CLI arguments and create and populate the FAQ index."""
     parser = argparse.ArgumentParser(description="Create and populate an Elasticsearch FAQ index")
-    default_csv = Path(__file__).resolve().parent.parent / "data" / "geforce_now_faq.csv"
+    default_csv = Path(__file__).resolve().parent.parent / "data" / "csv" / "geforce_now_faq.csv"
     parser.add_argument("--csv", default=str(default_csv), help="Path to FAQ CSV file")
     parser.add_argument("--index", default=DEFAULT_INDEX, help="Elasticsearch index name")
     parser.add_argument("--es-url", default=DEFAULT_ES_URL, help="Elasticsearch URL")

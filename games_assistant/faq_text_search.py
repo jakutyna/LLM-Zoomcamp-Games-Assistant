@@ -4,17 +4,19 @@ import argparse
 
 from elasticsearch import Elasticsearch
 
-DEFAULT_INDEX = "geforce-now-faq"
-DEFAULT_ES_URL = "http://localhost:9200"
+from constants import DEFAULT_ES_URL, DEFAULT_INDEX
+
+
 
 
 def search_faq(
     client: Elasticsearch,
     index_name: str,
     query: str,
-    size: int,
+    size: int = 5,
     category: str | None = None,
     tag: str | None = None,
+    boost_dict: dict[str, int] | None = None,
 ) -> list[dict]:
     """Search FAQ questions and answers with optional exact metadata filters.
 
@@ -25,6 +27,8 @@ def search_faq(
         size: Maximum number of matching documents to return.
         category: Exact FAQ category by which to filter results.
         tag: Exact FAQ tag by which to filter results.
+        boost_dict: Field weights for boosting relevance scores.
+            If None, all fields have equal weight.
 
     Returns:
         Elasticsearch hit objects ordered by relevance score.
@@ -35,6 +39,11 @@ def search_faq(
     if tag:
         filters.append({"term": {"tag": tag}})
 
+    if boost_dict:
+        fields = [f"{field}^{boost}" for field, boost in boost_dict.items()]
+    else:
+        fields = ["question", "tag", "answer"]
+    
     body = {
         "size": size,
         "query": {
@@ -43,7 +52,7 @@ def search_faq(
                     {
                         "multi_match": {
                             "query": query,
-                            "fields": ["question^4", "tag^3", "answer", "category^2"],
+                            "fields": fields,
                             "type": "best_fields",
                         }
                     }
@@ -54,6 +63,8 @@ def search_faq(
     }
     response = client.search(index=index_name, body=body)
     return response["hits"]["hits"]
+
+
 
 
 def main() -> None:

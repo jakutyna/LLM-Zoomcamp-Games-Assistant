@@ -19,7 +19,7 @@ docker run --name games-es \
 uv sync
 ```
 
-3) Create index and load CSV
+<!-- 3) Create index and load CSV
 
 ```sh
 uv run games_assistant/index_games_es.py --recreate
@@ -29,7 +29,7 @@ uv run games_assistant/index_games_es.py --recreate
 
 ```sh
 uv run games_assistant/search_games_es.py "psychological survival horror"
-```
+``` -->
 
 ## GeForce NOW FAQ Retrieval
 
@@ -38,6 +38,8 @@ Create the FAQ index from the enriched FAQ dataset:
 ```sh
 uv run games_assistant/index_faq_es.py --recreate
 ```
+
+See https://coralogix.com/guides/elasticsearch/elasticsearch-python-index-search-optimize/ for explanation
 
 Search with a command-line query or run the command without one to enter it interactively:
 
