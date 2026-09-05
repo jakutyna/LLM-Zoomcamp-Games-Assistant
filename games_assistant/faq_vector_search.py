@@ -19,8 +19,8 @@ def search_faq(
     client: Elasticsearch,
     index_name: str,
     query: str,
-    model: SentenceTransformer,
     size: int = 5,
+    model_name: str = DEFAULT_EMBEDDING_MODEL,
     category: str | None = None,
     tag: str | None = None,
     vector_field: str = "question_answer_vector",
@@ -32,7 +32,7 @@ def search_faq(
         client: Connected Elasticsearch client.
         index_name: Name of the FAQ vector index to search.
         query: Natural-language search query.
-        model: Sentence transformer used to encode the query.
+        model_name: Sentence transformer model name used to encode the query.
         size: Maximum number of matching documents to return.
         category: Exact FAQ category by which to filter results.
         tag: Exact FAQ tag by which to filter results.
@@ -51,6 +51,7 @@ def search_faq(
     if tag:
         filters.append({"term": {"tag.keyword": tag}})
 
+    model = SentenceTransformer(model_name)
     knn = {
         "field": vector_field,
         "query_vector": model.encode(query).tolist(),
@@ -64,7 +65,7 @@ def search_faq(
         index=index_name,
         knn=knn,
         size=size,
-        source_excludes=list(VECTOR_FIELDS),
+        # source_excludes=list(VECTOR_FIELDS),
     )
     return response["hits"]["hits"]
 
@@ -96,12 +97,11 @@ def main() -> None:
     if not client.ping():
         raise RuntimeError(f"Cannot connect to Elasticsearch at {args.es_url}")
 
-    model = SentenceTransformer(args.model)
     hits = search_faq(
         client,
         args.index,
         query,
-        model,
+        args.model,
         args.size,
         args.category,
         args.tag,

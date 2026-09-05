@@ -7,8 +7,6 @@ from elasticsearch import Elasticsearch
 from constants import DEFAULT_ES_URL, DEFAULT_INDEX
 
 
-
-
 def search_faq(
     client: Elasticsearch,
     index_name: str,
