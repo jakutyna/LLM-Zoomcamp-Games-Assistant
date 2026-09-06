@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Any
 
@@ -36,6 +37,7 @@ def evaluate_search_function(
     search_function: SearchFunction,
     ground_truth: pd.DataFrame | str | Path,
     index_name: str,
+    max_workers: int | None = None,
     **kwargs: Any,
 ) -> dict[str, float]:
     """Calculate aggregate hit rate and MRR for a search function.
@@ -48,6 +50,8 @@ def evaluate_search_function(
             optional search arguments, returning ranked result mappings.
         ground_truth: Ground-truth DataFrame or path to a CSV file.
         index_name: Index name passed to the search function for every query.
+        max_workers: Maximum number of concurrent searches. Defaults to the
+            executor's standard worker count.
         **kwargs: Additional search arguments, such as ``size``, ``client``,
             or vector-search settings.
 
@@ -63,15 +67,23 @@ def evaluate_search_function(
 
     hit_scores = []
     reciprocal_ranks = []
-    for row in dataset.itertuples(index=False):
-        results = search_function(
-            query=row.question,
-            index_name=index_name,
-            **kwargs,
+    rows = list(dataset.itertuples(index=False))
+
+    def search(row: Any) -> list[Mapping[str, Any]]:
+        # print(f"Evaluating question for FAQ record {row.id}: {row.question}")
+        return list(
+            search_function(
+                query=row.question,
+                index_name=index_name,
+                **kwargs,
+            )
         )
-        results = list(results)
-        hit_scores.append(hit_rate(row.id, results))
-        reciprocal_ranks.append(mrr(row.id, results))
+
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        results_by_row = executor.map(search, rows)
+        for row, results in zip(rows, results_by_row, strict=True):
+            hit_scores.append(hit_rate(row.id, results))
+            reciprocal_ranks.append(mrr(row.id, results))
 
     return {
         "hit_rate": sum(hit_scores) / len(hit_scores),

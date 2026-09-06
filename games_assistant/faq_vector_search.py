@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from threading import Lock
 
 from elasticsearch import Elasticsearch
 from sentence_transformers import SentenceTransformer
@@ -14,6 +15,30 @@ VECTOR_FIELDS = (
     "tag_vector",
 )
 
+_model_cache: dict[tuple[str, str | None, bool], SentenceTransformer] = {}
+_model_cache_lock = Lock()
+
+
+def get_embedding_model(
+    model_name: str,
+    cache_folder: str | None = None,
+    local_files_only: bool = False,
+) -> SentenceTransformer:
+    """Load an embedding model once per process and reuse it for searches.
+
+    Model files are stored in Hugging Face's cache by default. Set
+    ``local_files_only`` after the first download to prevent network requests.
+    """
+    cache_key = (model_name, cache_folder, local_files_only)
+    with _model_cache_lock:
+        if cache_key not in _model_cache:
+            _model_cache[cache_key] = SentenceTransformer(
+                model_name,
+                cache_folder=cache_folder,
+                local_files_only=local_files_only,
+            )
+        return _model_cache[cache_key]
+
 
 def search_faq(
     client: Elasticsearch,
@@ -25,6 +50,8 @@ def search_faq(
     tag: str | None = None,
     vector_field: str = "question_answer_vector",
     num_candidates: int = 100,
+    cache_folder: str | None = None,
+    local_files_only: bool = False,
 ) -> list[dict]:
     """Search FAQ entries by embedding similarity with optional metadata filters.
 
@@ -38,6 +65,8 @@ def search_faq(
         tag: Exact FAQ tag by which to filter results.
         vector_field: Dense vector field against which to run the kNN search.
         num_candidates: Number of candidates each shard considers before ranking.
+        cache_folder: Optional directory for the Hugging Face model cache.
+        local_files_only: Load only model files already available locally.
 
     Returns:
         Elasticsearch hit objects ordered by similarity score.
@@ -51,7 +80,7 @@ def search_faq(
     if tag:
         filters.append({"term": {"tag.keyword": tag}})
 
-    model = SentenceTransformer(model_name)
+    model = get_embedding_model(model_name, cache_folder, local_files_only)
     knn = {
         "field": vector_field,
         "query_vector": model.encode(query).tolist(),
@@ -87,6 +116,12 @@ def main() -> None:
         help="Dense vector field to search against",
     )
     parser.add_argument("--num-candidates", type=int, default=100, help="Candidates considered per shard")
+    parser.add_argument("--cache-folder", help="Directory for the Hugging Face model cache")
+    parser.add_argument(
+        "--local-files-only",
+        action="store_true",
+        help="Load only a model already available in the local cache",
+    )
     args = parser.parse_args()
 
     query = args.query or input("Search the GeForce NOW FAQ: ").strip()
@@ -107,6 +142,8 @@ def main() -> None:
         args.tag,
         args.vector_field,
         args.num_candidates,
+        args.cache_folder,
+        args.local_files_only,
     )
     if not hits:
         print("No results found")
