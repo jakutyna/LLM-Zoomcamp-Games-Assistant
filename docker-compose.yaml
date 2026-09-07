@@ -1,0 +1,76 @@
+services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:9.5.1
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: "false"
+      ES_JAVA_OPTS: -Xms1g -Xmx1g
+      cluster.routing.allocation.disk.watermark.low: "95%"
+      cluster.routing.allocation.disk.watermark.high: "96%"
+      cluster.routing.allocation.disk.watermark.flood_stage: "97%"
+    ports:
+      - "9200:9200"
+    volumes:
+      - elasticsearch-data:/usr/share/elasticsearch/data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS 'http://localhost:9200/_cluster/health?wait_for_status=yellow&timeout=5s' >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: games_assistant
+      POSTGRES_USER: games_assistant
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-games_assistant}
+    ports:
+      - "5434:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U games_assistant -d games_assistant"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  app:
+    build: .
+    environment:
+      OPENAI_API_KEY: ${OPENAI_API_KEY:?Set OPENAI_API_KEY in .env}
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      DATABASE_URL: postgresql://games_assistant:${POSTGRES_PASSWORD:-games_assistant}@postgres:5432/games_assistant
+      HF_HOME: /models
+    ports:
+      - "8501:8501"
+    volumes:
+      - model-cache:/models
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+  grafana:
+    image: grafana/grafana:12.3.3
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-games_assistant}
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  elasticsearch-data:
+  postgres-data:
+  grafana-data:
+  model-cache:

@@ -5,9 +5,26 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
-    "jupyter>=1.1.1",
+    "beautifulsoup4>=4.15.0",
+    "elasticsearch>=9.5.0",
     "openai>=3.0.0",
     "pandas>=3.0.5",
+    "psycopg[binary]>=3.2.0",
     "pydantic>=2.13.4",
     "python-dotenv>=1.2.2",
+    "requests>=2.34.2",
+    "sentence-transformers>=3.0.0",
+    "streamlit>=1.44.0",
+    "torch>=2.0.0",
 ]
+
+[dependency-groups]
+dev = ["jupyter>=1.1.1"]
+
+[tool.uv.sources]
+torch = { index = "pytorch-cpu" }
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
