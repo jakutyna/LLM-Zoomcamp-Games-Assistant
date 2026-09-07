@@ -232,6 +232,18 @@ coupling data refresh to application startup.
 
 ## Containerized Application
 
+Application components:
+
+- **Streamlit app** runs hybrid FAQ retrieval (lexical and vector search with
+	reciprocal-rank fusion), sends grounded context to OpenAI, and records each
+	interaction and rating.
+- **Elasticsearch** stores separate text and vector FAQ indexes. Missing indexes
+	are populated automatically from `data/csv/geforce_now_faq.csv` at app startup.
+- **PostgreSQL** stores questions, answers, prompts, token counts, cost, response
+	time, category, timestamps, and thumbs-up/down feedback.
+- **Grafana** reads PostgreSQL through an automatically provisioned datasource
+	and dashboard.
+
 [app.py](games_assistant/app.py) implements the Streamlit chat interface, with
 optional filtering by FAQ category. Each submitted question is answered with
 hybrid search configured using the parameters selected during evaluation. The
