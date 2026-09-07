@@ -7,6 +7,7 @@ Focus: lexical retrieval only (for RAG retrieval stage).
 ```sh
 docker run --name games-es \
 	-p 9200:9200 \
+	-v games-es-data:/usr/share/elasticsearch/data \
 	-e discovery.type=single-node \
 	-e xpack.security.enabled=false \
 	-e ES_JAVA_OPTS='-Xms1g -Xmx1g' \

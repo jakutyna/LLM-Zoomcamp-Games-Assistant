@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable, Mapping
+from dataclasses import dataclass
 from typing import Any
 
 from openai import OpenAI
@@ -13,6 +14,27 @@ Keep the answer concise and factual."""
 
 SearchFunction = Callable[..., Iterable[Mapping[str, Any]]]
 Prompt = list[dict[str, str]]
+
+
+@dataclass(frozen=True)
+class TokenUsage:
+    """Token counts reported by the OpenAI Responses API."""
+
+    input_tokens: int
+    output_tokens: int
+
+    @property
+    def total_tokens(self) -> int:
+        """Return the total number of input and output tokens."""
+        return self.input_tokens + self.output_tokens
+
+
+@dataclass(frozen=True)
+class RAGResponse:
+    """Generated answer and its token usage."""
+
+    answer: str
+    usage: TokenUsage
 
 
 class RAG:
@@ -49,6 +71,7 @@ class RAG:
         self.instructions = instructions
         self.llm_client = llm_client
         self.model_name = model_name
+        self.last_token_usage: TokenUsage | None = None
 
     def retrieve(self, query: str, **kwargs: Any) -> list[Mapping[str, Any]]:
         """Retrieve FAQ records for a query.
@@ -109,12 +132,7 @@ class RAG:
         Returns:
             The model's generated response text.
         """
-        client = self.llm_client or OpenAI()
-        response = client.responses.create(
-            model=self.model_name,
-            input=prompt,
-        )
-        return response.output_text
+        return self._llm_response(prompt).answer
 
     def run(self, query: str, **kwargs: Any) -> str:
         """Run the complete retrieval, augmentation, and generation workflow.
@@ -129,6 +147,28 @@ class RAG:
         records = self.retrieve(query, **kwargs)
         prompt = self.augment(query, records)
         return self.generate(prompt)
+
+    def run_with_usage(self, query: str, **kwargs: Any) -> RAGResponse:
+        """Run the RAG workflow and return the answer with token usage."""
+        records = self.retrieve(query, **kwargs)
+        prompt = self.augment(query, records)
+        return self._llm_response(prompt)
+
+    def _llm_response(self, prompt: Prompt) -> RAGResponse:
+        client = self.llm_client or OpenAI()
+        response = client.responses.create(
+            model=self.model_name,
+            input=prompt,
+        )
+        if response.usage is None:
+            raise RuntimeError("The LLM response did not include token usage")
+
+        usage = TokenUsage(
+            input_tokens=response.usage.input_tokens,
+            output_tokens=response.usage.output_tokens,
+        )
+        self.last_token_usage = usage
+        return RAGResponse(answer=response.output_text, usage=usage)
 
     @staticmethod
     def _format_context(records: Iterable[Mapping[str, Any]]) -> str:

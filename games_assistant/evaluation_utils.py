@@ -10,6 +10,46 @@ import pandas as pd
 
 SearchFunction = Callable[..., Iterable[Mapping[str, Any]]]
 
+MODEL_PRICES_PER_MILLION_TOKENS = {
+    "gpt-5.4-mini": {"input": 0.75, "output": 4.50},
+    "gpt-4o": {"input": 2.50, "output": 10.00},
+}
+
+
+def calculate_prompt_cost(
+    model_name: str,
+    input_tokens: int,
+    output_tokens: int,
+) -> float:
+    """Calculate prompt cost in US dollars from model token usage.
+
+    Prices are expressed per one million tokens and cover standard,
+    non-cached input and output usage.
+
+    Args:
+        model_name: Model whose pricing should be applied.
+        input_tokens: Number of input tokens reported by the LLM response.
+        output_tokens: Number of output tokens reported by the LLM response.
+
+    Returns:
+        Total cost in US dollars.
+
+    Raises:
+        ValueError: If token counts are negative or the model is unsupported.
+    """
+    if input_tokens < 0 or output_tokens < 0:
+        raise ValueError("token counts must be non-negative")
+    if model_name not in MODEL_PRICES_PER_MILLION_TOKENS:
+        supported_models = ", ".join(sorted(MODEL_PRICES_PER_MILLION_TOKENS))
+        raise ValueError(
+            f"Unsupported model {model_name!r}. Supported models: {supported_models}"
+        )
+
+    prices = MODEL_PRICES_PER_MILLION_TOKENS[model_name]
+    return (
+        input_tokens * prices["input"] + output_tokens * prices["output"]
+    ) / 1_000_000
+
 
 def hit_rate(relevant_id: int | str, results: Iterable[Mapping[str, Any]]) -> float:
     """Return 1.0 when the relevant document appears in the results, else 0.0.
