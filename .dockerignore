@@ -1,0 +1,10 @@
+.env
+.git
+.venv
+__pycache__
+*.py[cod]
+*.ipynb
+.pytest_cache
+.ruff_cache
+data/csv/ground_truth.csv
+data/csv/rag_evaluation_*.csv

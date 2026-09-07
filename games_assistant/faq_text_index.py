@@ -40,7 +40,11 @@ def create_index(
             "answer": {"type": "text"},
         }
     }
-    client.indices.create(index=index_name, mappings=mappings)
+    client.indices.create(
+        index=index_name,
+        mappings=mappings,
+        settings={"number_of_replicas": 0},
+    )
 
 
 def index_csv_data(client: Elasticsearch, index_name: str, csv_path: Path) -> int:

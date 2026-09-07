@@ -10,7 +10,7 @@ from openai import OpenAI
 DEFAULT_INSTRUCTIONS = """You answer questions about the GeForce NOW service.
 Use only the information in the provided context to answer the user's query.
 If the answer cannot be found in the context, answer exactly:
-The was answer for your question was not found in FAQ database.
+The answer for your question was not found in FAQ database.
 Keep the answer concise and factual."""
 
 SearchFunction = Callable[..., Iterable[Mapping[str, Any]]]

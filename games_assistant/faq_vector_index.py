@@ -71,7 +71,11 @@ def create_index(
             },
         }
     }
-    client.indices.create(index=index_name, mappings=mappings)
+    client.indices.create(
+        index=index_name,
+        mappings=mappings,
+        settings={"number_of_replicas": 0},
+    )
 
 
 def create_default_index(

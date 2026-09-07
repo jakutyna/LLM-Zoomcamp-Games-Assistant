@@ -22,14 +22,22 @@ def ingest_default_indexes(
 ) -> None:
     """Create and populate missing default FAQ indexes."""
     if client.indices.exists(index=DEFAULT_INDEX):
-        print(f"Text index '{DEFAULT_INDEX}' already exists; skipping.")
+        if client.count(index=DEFAULT_INDEX)["count"] == 0:
+            inserted = index_text_data(client, DEFAULT_INDEX, csv_path)
+            print(f"Indexed {inserted} FAQ documents into '{DEFAULT_INDEX}'.")
+        else:
+            print(f"Text index '{DEFAULT_INDEX}' already exists; skipping.")
     else:
         create_text_index(client, DEFAULT_INDEX)
         inserted = index_text_data(client, DEFAULT_INDEX, csv_path)
         print(f"Indexed {inserted} FAQ documents into '{DEFAULT_INDEX}'.")
 
     if client.indices.exists(index=DEFAULT_VECTOR_INDEX):
-        print(f"Vector index '{DEFAULT_VECTOR_INDEX}' already exists; skipping.")
+        if client.count(index=DEFAULT_VECTOR_INDEX)["count"] == 0:
+            inserted = index_vector_data(client, DEFAULT_VECTOR_INDEX, csv_path)
+            print(f"Indexed {inserted} FAQ documents into '{DEFAULT_VECTOR_INDEX}'.")
+        else:
+            print(f"Vector index '{DEFAULT_VECTOR_INDEX}' already exists; skipping.")
     else:
         create_vector_index(client, DEFAULT_VECTOR_INDEX)
         inserted = index_vector_data(client, DEFAULT_VECTOR_INDEX, csv_path)

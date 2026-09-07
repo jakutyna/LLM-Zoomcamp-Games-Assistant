@@ -8,22 +8,17 @@ FAQ Source: [https://www.nvidia.com/en-us/geforce-now/faq/](https://www.nvidia.c
 
 ## Prerequisites
 
-- uv
-- docker
+- Docker with the Compose plugin
 - OpenAI account
 
-Install `uv` (Mac/Linux):
-```sh
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-OpenAI API key (`.env`):
+Create the local environment file and add an OpenAI API key:
 
 ```sh
-OPENAI_API_KEY=sk-<YOUR_KEY_HERE>
+cp .env.example .env
 ```
 
-Note: Make sure `.env` is included in `.gitignore` file so you never accidentally commit your key.
+The `.env` file is ignored by Git. Change the default PostgreSQL and Grafana
+passwords in that file when exposing the services beyond local development.
 
 
 ## Data
@@ -46,9 +41,63 @@ uv run data/generate_tags.py
 
 ## Quick Start
 
-<docker composer instructions>
+Build and launch the complete stack:
+
+```sh
+docker compose up --build
+```
+
+Open the services after startup:
+
+- Streamlit assistant: [http://localhost:8501](http://localhost:8501)
+- Grafana: [http://localhost:3000](http://localhost:3000)
+
+PostgreSQL is available to host tools on `localhost:5434`. Elasticsearch is
+available only within the Compose network.
+
+Grafana uses the credentials from `.env` (`admin` / `admin` by default). The
+provisioned **Games Assistant / RAG Metrics** dashboard reports calls, cost,
+latency, token usage, feedback, and recent interactions.
+
+The first app startup downloads the embedding model and creates both
+Elasticsearch indexes, so it can take several minutes. Subsequent starts reuse
+the persisted index and model-cache volumes.
+
+Stop the services with:
+
+```sh
+docker compose down
+```
+
+Add `-v` only when you also want to delete Elasticsearch, PostgreSQL, Grafana,
+and model-cache volumes.
 
 
 ## Components
 
-<each point explained seperately>
+- **Streamlit app** runs hybrid FAQ retrieval (lexical and vector search with
+	reciprocal-rank fusion), sends grounded context to OpenAI, and records each
+	interaction and rating.
+- **Elasticsearch** stores separate text and vector FAQ indexes. Missing indexes
+	are populated automatically from `data/csv/geforce_now_faq.csv` at app startup.
+- **PostgreSQL** stores questions, answers, prompts, token counts, cost, response
+	time, category, timestamps, and thumbs-up/down feedback.
+- **Grafana** reads PostgreSQL through an automatically provisioned datasource
+	and dashboard.
+
+For local Python development outside Docker, install dependencies with:
+
+```sh
+uv sync
+```
+
+Generate 50 mock metric rows distributed across the last 12 hours for the
+Grafana dashboard:
+
+```sh
+uv run data/generate_mock_metrics.py
+```
+
+This command runs on the host and connects to the Compose PostgreSQL service on
+port `5434`. Use `--count`, `--hours`, `--seed`, or `--database-url` to override
+its defaults.
